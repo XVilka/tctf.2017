@@ -1,0 +1,15 @@
+*.swp
+*.un~
+*.aux
+*.snm
+*.toc
+*.log
+*.nax
+*.out
+*.nav
+*.bbl
+*.bcf
+*.blg
+*.run.xml
+*.vrb
+

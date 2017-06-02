@@ -1,0 +1,608 @@
+\documentclass[10pt,pdf,utf8,english,compress,hyperref={unicode}]{beamer}
+\usepackage{ifxetex}
+\usepackage[english]{babel}
+\ifxetex
+\else
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[backend=biber,style=authoryear]{biblatex}
+\fi
+\usepackage{booktabs}
+\usepackage[scale=2]{ccicons}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{drawstack}
+\usepackage{animate}
+\usepackage{tikz}
+\usepackage[normalem]{ulem}
+\usetikzlibrary{shapes,arrows}
+
+\graphicspath{{./pix/}}
+%\usetheme[useTitleProgressBar]{m}
+\usetheme{m}
+
+% ------ Embed URL in the reference title ------
+
+\ifxetex
+% ---- START
+\else
+\renewbibmacro*{url+urldate}{}
+
+\newbibmacro{string+doiurl}[1]{%
+	\iffieldundef{doi}{%
+		\iffieldundef{url}{%
+			#1%
+		}{%
+			\href{\thefield{url}}{#1}%
+		}%
+	}{%
+		\href{http://dx.doi.org/\thefield{doi}}{#1}%
+	}%
+}
+
+\DeclareFieldFormat{title}{\usebibmacro{string+doiurl}{\mkbibemph{#1}}}
+\DeclareFieldFormat[article,incollection]{title}{\usebibmacro{string+doiurl}{\mkbibemph{#1}}}
+
+% ------ Nice and shiny bibliography list -------
+
+\setbeamertemplate{bibliography item}{%
+	\ifboolexpr{test {\ifentrytype{book}} or test {\ifentrytype{mvbook}}
+	or test {\ifentrytype{collection}} or test {\ifentrytype{mvcollection}}
+	or test {\ifentrytype{reference}} or test {\ifentrytype{mvreference}} }
+	{\setbeamertemplate{bibliography item}[book]}
+	{\ifentrytype{online}
+		{\setbeamertemplate{bibliography item}[online]}
+		{\setbeamertemplate{bibliography item}[article]}}%
+	\usebeamertemplate{bibliography item}}
+
+\defbibenvironment{bibliography}
+	{\list{}
+		{\settowidth{\labelwidth}{\usebeamertemplate{bibliography item}}%
+		\setlength{\leftmargin}{\labelwidth}%
+		\setlength{\labelsep}{\biblabelsep}%
+		\addtolength{\leftmargin}{\labelsep}%
+		\setlength{\itemsep}{\bibitemsep}%
+		\setlength{\parsep}{\bibparsep}}}
+	{\endlist}
+	{\item}
+% ----- END
+\fi
+
+% ------ Document starting here -------
+
+\title{Radare2 as a tool for CTF}
+\subtitle{Basic reference}
+\author{Anton Kochkov (@akochkov)}
+\date{\today}
+\institute{KeenLab of Tencent, TCTF 2017}
+
+\ifxetex
+\else
+\addbibresource{refs.bib}
+% Just a hack to workaround 'Package keyvar error: langjapanese undefined'
+% Will be fixed in biblatex 3.2 and biber 2.3
+% See more at:
+% https://tex.stackexchange.com/questions/277314/package-keyval-error-langjapanese-undefined
+\NewBibliographyString{langjapanese}
+\NewBibliographyString{fromjapanese}
+\fi
+
+% ------------------------------------------------------------------------------------
+\begin{document}
+\maketitle
+
+% ------------------------------------------------------------------------------------
+\section{Introduction}
+
+\begin{frame}[fragile]
+  \frametitle{History}
+  \begin{itemize}
+	  \item Incepted in 2006 by Sergi Alvarez aka Pancake (@trufae) as Radare1
+	  \item Initially designed as a forensic tool
+	  \item Rewritten from scratch in 2009 for modular architecture
+	  \item Scriptable and extendable framework, not just a tool
+	  \item Gained popularity only a few years ago
+	  \item Participation in GSoC and institutioning own RSoC
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Short overview}
+  \begin{itemize}
+	\item Core part written in the pure C without dependencies
+	\item Highly portable to different platforms
+	\item More than 400 configuration options
+	\item UNIX (KISS) -like tools
+	\item Around 1000 commands
+	\item Supports both static and dynamic analysis
+	\item Own package manager and external plugins infrastructure
+	\item Windows support from the box (and GSoC task)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Installation}
+  \begin{itemize}
+	  \item First rule - don't use packaged version
+	  \item sys/install.sh on *nix, including OS X
+	  \item prebuilt EXE on Windows (best in ConEmu)
+	  \item Current release version is 1.5.0
+	  \item Debian (and Ubuntu?) still ship 0.9.6
+	  \item Use version from git for bug-reporting
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Toolset review}
+  \begin{itemize}
+	\item Radare2 - the main tool, incorporate everything
+	\item Rabin2 - parsing binaries
+	\item Radiff2 - diffing binaries
+	\item Rafind2 - searching
+	\item Ragg2 - writing shellcodes
+	\item Rahash2 - calculating hashes
+	\item Rarun2 - setting up running environment
+	\item Rasm2 - CLI assembler/disassembler
+  \end{itemize}
+\end{frame}
+
+\section{Short cheatsheet}
+
+\begin{frame}[fragile]
+  \frametitle{Commands concept}
+  \begin{itemize}
+	  \item Most of the commands are abbreviations
+	  \item Similar as in GDB ("info registers" -> "i r") but w/o space
+	  \item See registers - dr (Debug), aer (ESIL)
+	  \item dr == debug register
+	  \item aer == analysis ESIL register
+	  \item Each command has internal help - just add '?'
+	  \item Most of the commands has JSON output - just add 'j'
+	  \item Case sensitive (see commands' count)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Basic disassembly}
+  \begin{itemize}
+	  \item rasm2 -a arm -b 64 -d 058d00f8
+	  \item rasm2 -a arm "mov r0, 5"
+	  \item pd [N] - linear disassembly of [N] insturctions
+	  \item pi [N] - the same, just instructions
+	  \item those 3 below require functions defined first (analysis)
+	  \item pdf [function name] - linear disassembly of function
+	  \item pdr - recursive disassembly across function graph
+	  \item pdc - basic C-like pseudocode
+	% reference to disasm section in the book
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Basic debug}
+  \begin{itemize}
+	  \item Add "-d" option to radare2
+	  \item Or reopen it using "ood" command
+	  \item r2 -d /bin/ls
+	  \item Debug commands are under "d" namespace - see "d?"
+	  \item db - Setting breakpoint
+	  \item dc - Continuing execution
+	  \item ds - Single step
+	  \item ds [address] - Step until
+	  \item Functional keys in visual mode, see "V?"
+	% reference to debug section in the book
+	% reference to "migrate from GDB wiki"
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Visual debug}
+	\begin{figure}
+		\includegraphics[width=\linewidth]{r2visualdebug.png}
+	\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Basic patching}
+  \begin{itemize}
+	  \item Add "-w" option to radare2 to open in write mode
+	  \item Or reopen it using "oo+" command
+	  \item Writing commands are under "w" namespace - see "w?"
+	  \item w - Write ASCII string
+	  \item wx - Write hexadecimal sequence
+	  \item wa - Write assembly
+	  \item wtf - Write to file
+	% reference to patching section in the book
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Visual modes}
+  \begin{itemize}
+	  \item Can use UTF-8 and True color % reference to UTF-8 and TrueColor
+	  \item e scr.utf8=true ; e scr.truecolor=true
+	  \item All visual modes are under "V" namespace
+	  \item Just press V and loop forward/back using p/P
+	  \item VV - ASCII graphs
+	  \item V\_ - HUD mode
+	  \item VF - navigation through flags/symbols (supports p/P too)
+	  \item Ve - navigation (and preview) of internal config variables
+	  \item Vt - navigation through types
+	  \item Has different hotkeys - see "V?"
+	% reference to visual section in the book
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Ve - visual config}
+	\begin{figure}
+		\includegraphics[width=\linewidth]{r2visualconfig.png}
+	\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{VF - visual flagspaces}
+	\begin{figure}
+		\includegraphics[width=\linewidth]{r2visualflagspace.png}
+	\end{figure}
+\end{frame}
+
+\section{Analysis}
+
+\begin{frame}[fragile]
+  \frametitle{Analysis options}
+  \begin{itemize}
+	  \item Located in e anal. config var namespace
+	  \item For example enabling jump tables analysis "e anal.jmptbl=true"
+	  \item We don't enable all analysis by default
+	  \item "r2 -A /bin/ls" - open with autoanalysis
+	  \item "r2 -e bin.demangle=true /bin/ls" - open with demangling
+	  \item "e asm.demangle" - show demangled symbols in disassembly
+	  \item "e pdb." - options related to loading/downloading PDBs
+	  \item "e asm." - options to control information shown in disasm
+	% reference to analysis section of the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Analysis commands}
+  \begin{itemize}
+	  \item There are a few autoanalysis commands: aa, aaa and aaaa
+	  \item Those offer different analysis depth
+	  \item All analysis commands are under "a" namespace - see "a?"
+	  \item "r2 -A", "r2 -AA",.. - same with options
+	  \item "af" - analyze the function (see also "af?")
+	  \item "av" - show virtual tables (C++)
+	  \item "aa?" - particular commands for recursive analysis
+	  \item "aac" - analyze function calls
+	  \item "aad" - analyze data references
+	  \item "ax?" - particular commands for analyzing references ("axt" e.g.)
+	% reference to analysis section of the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{ASCII graph}
+	\begin{figure}
+		\includegraphics[width=\linewidth]{r2asciigraph.png}
+	\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ASCII/Unicode graphs}
+  \begin{itemize}
+	  \item After analysis is done graph information is available
+	  \item "agC" - generate Graphviz code
+	  \item "agf" - show ASCII graph of the function
+	  \item "VV" - visual ASCII graph
+	  \item It's possible to navigate through nodes using Tab/Shift+Tab
+	  \item There is support for "zoom" - "+/-"
+	  \item Minimap support - press "p/P" to scroll via all modes
+	  \item Also graphs information available via JSON (for WebUI)
+	% reference to visual graphs of the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Minimap}
+	\begin{figure}
+		\includegraphics[width=\linewidth]{r2minimap.png}
+	\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Types}
+  \begin{itemize}
+	  \item There is a support for C types
+	  \item All types commands are located in "t" namespace - see "t?"
+	  \item "to file.h" - parse C header file and load types from it
+	  \item "td struct qwe {int a; char* b;};" - parse type desc
+	  \item "tp <typename> = <address>" - cast data at some addr to type
+	  \item "tl <typename> = <address>" - permanently link type to addr
+	  \item "tk" - raw requests to SDB database (types storage)
+	  \item "Vt" - visual types navigation
+	% reference to visual graphs of the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Arguments}
+  \begin{itemize}
+	  \item There is a support for function arguments
+	  \item All arguments commands are located in "afv" namespace - see "afv?"
+	  \item "afv" - show locals/arguments
+	  \item "afvn" - rename argument/local
+	  \item "afvr?" - manipulation of register based arguments
+	  \item "afvs?" - manipulation of SP based arguments
+	  \item "afvb?" - manipulation of BP based arguments
+	  \item "afta" - analyze all arguments + types across file
+	% reference to arguments/locals of the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ESIL}
+  \begin{itemize}
+	  \item R2 has its own Intermediate Language and its VM
+	  \item It's RPN form (Reverse Polish Notation)
+	  \item Allow to emulate parts of the programs
+	  \item Supported architectures are x86, ARM, MIPS, etc...
+	  \item Used in the deep analysis for resolving indirect jumps
+	  \item "ao~esil" - shows the ESIL representation of current instruction
+	  \item "ae eax,5,+=" - evaluate ESIL expression
+	  \item "e asm.esil=true" - show ESIL instead of disassembly
+	% reference to ESIL spec
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+% TODO: put some DEMO here?
+
+\begin{frame}[fragile]
+  \frametitle{Memory inspection}
+  \begin{itemize}
+	  \item For this R2 need to be started in debug mode ("-d")
+	  \item "dm?" commands allows you to inspect the memory
+	  \item "dmm" - shows loaded libraries
+	  \item "dm" - inspecting the memory map
+	  \item "dmh?" - commands to inspect the heap
+	  \item "dmhg" - show the ASCII graph of the heap
+	  \item "dmhb" - display parsed bins for selected heap arena
+	  \item "dbta" - show the ASCII graph of call stack
+	% reference to heap documentation
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Stack visualization}
+	\begin{figure}
+		\includegraphics[width=\linewidth]{r2heapbins.png}
+	\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Stack visualization}
+	\begin{figure}
+		\includegraphics[width=\linewidth]{r2visualstack.png}
+	\end{figure}
+\end{frame}
+
+% TODO: put some DEMO here?
+\section{Debugging}
+
+\begin{frame}[fragile]
+  \frametitle{Native debugging}
+  \begin{itemize}
+	  \item For this R2 need to be started in debug mode ("-d")
+	  \item Or reopen using "ood"
+	  \item "dr=" to show the registers
+	  \item "dbt" - display backtrace
+	  \item "dt?" - tracing features
+	  \item "dp?" - listing/attaching/etc to processes
+	  \item "dk?" - working with signals
+	% reference to debug documentation documentation
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+% TODO: put some DEMO here?
+
+\begin{frame}[fragile]
+\frametitle{GDB Remote connection}
+\begin{itemize}
+	\item Just connect using "gdb://" protocol
+	\item "gdbserver /bin/ls"
+	\item "r2 -D gdb gdb://localhost:1234"
+	\item Support the same commands as other debug engines
+	\item Can be used to connect GDBserver of QEMU, VMWare, etc
+	\item This year our GSoC student also working on improving
+	\item And also working on small gdbserver implementation
+  % reference to GDB remote protocol documentation
+  % reference to GSoC GDB project
+  % reference to the asciinema?
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{WinDbg Remote connection}
+\begin{itemize}
+	\item Just connect using "windbg://" protocol
+	\item Run VBox or QEMU with Windows debug over pipes
+	\item "r2 -D wind windbg:///tmp/windbg.pipe"
+	\item Support the same commands as other debug engines
+	\item This year another GSoC student also working on improving this
+	\item For now it supports only connection via serial (pipe) - no network
+	\item Our own WinDbg protocol parser - can be reused in other projects
+  % reference to WinDbg parser shlr/wind
+  % reference to GSoC Windows project
+  % reference to the asciinema?
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Integration with FRIDA}
+\begin{itemize}
+	\item Just install Frida and r2frida ("r2pm -i r2frida")
+	\item "r2 frida://<phone\_id>/Appname"
+	\item r2frida implements IO layer smoothly redirecting commands
+  % reference to Frida and r2frida
+  % reference to the asciinema?
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ESIL debugging}
+  \begin{itemize}
+	  \item "aei" - initialize ESIL VM
+	  \item "aeim" - initialise memory for selected parameters
+	  \item "aeip" - point ESIL VM to current IP
+	  \item "aer eax=0x5" - set register value
+	  \item "aes" - step using ESIL emulation
+	  \item "aecu" - continue until using ESIL emulation
+	  \item Also stepping using ESIL is available in visual debug mode
+	% reference to ESIL chapters in the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+% TODO: Image of ESIL
+
+\begin{frame}[fragile]
+  \frametitle{Timeless debug}
+  \begin{itemize}
+	  \item R2 supports basic timeless debug
+	  \item One of the GSoC students working on improving it
+	  \item "dts+" - add the trace session
+	  \item "dts" - show the active trace sessions
+	  \item "dms?" - work with memory snapshots
+	  \item "dsb" - single step back
+	% reference to timeless debugger GSoC task
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\section{Signatures}
+
+\begin{frame}[fragile]
+  \frametitle{Native signatures}
+  \begin{itemize}
+	  \item "z" - show signatures status and "z*" to list them
+	  \item "zb" - define signature in place
+	  \item "zo" - manage signature files
+	  \item "zos" - save the signature into file
+	  \item "z/" - search signatures
+	  \item "zs" - manage singature spaces
+	% reference to signatures section of the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{FLIRT and Yara}
+  \begin{itemize}
+	  \item R2 has support for loading FLIRT signatures (IDA < 6.8)
+	  \item "zfs" - load FLIRT signature from the file and scan
+	  \item "zfd" - dump the contents of the FLIRT file
+	  \item "zfz" - convert FLIRT file to native signature format
+	  \item R2 can support Yara via plugin: "r2pm -i yara-lib; r2pm -i yara"
+	  \item "yara add" - load Yara rules from the file
+	  \item "yara scan" - to scan the file for matches
+	  \item "yara list" - show loaded Yara signatures
+	  \item "yara clear" - clear all loaded rules
+	% reference to analysis section of the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\section{Scripting}
+
+\begin{frame}[fragile]
+  \frametitle{Internal scripting}
+  \begin{itemize}
+	  \item R2 has variables - see "?\$?" output
+	  \item R2 supports iterators - see "?@?" output
+	  \item "pd 1; ao 1" - sequence the commands
+	  \item "ao | grep esil" - pipe into external commands
+	  \item "\#! tcpdump" - run system command
+	  \item "px 10 @ `ao~ptr[1]`" - like shell backtick
+	  \item Redirecting output using ">" and ">>"
+	% reference to scripting section of the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Loops, macroses and aliases}
+  \begin{itemize}
+	  \item "afi @@ fcn.* ~name" - grep through output of afi of matching
+	  \item "ao @@=\$\$ \$\$2" - looping over cur offset and cur offset +2
+	  \item "pi 1 @@i" - looping over instructions in the funtion
+	  \item "afi @@@ functions ~name[1]" - looping over functions
+	  \item "(qwe, pd4, ao)" - add macro "qwe", call with ".(qwe)"
+	  \item "(foo x y, pd \$0; s +\$1)" - macro with arguments
+	  \item "\$<aliasname>=<command>" - define an alias
+	  \item "\$dis='pi 1;ao'", then call "\$dis"
+	% reference to scripting section of the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{r2pipe}
+  \begin{itemize}
+	  \item R2 has a mechanism for interacting with scripts via pipe
+	  \item "pip install r2pipe", "npm install r2pipe"
+	  \item In python just do "import r2pipe" and use provided commands
+	  \item Python r2pipe scripts can be run from internal shell
+	  \item ". myscript.py" - just use source command "."
+	% reference to scripting section of the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Angr}
+  \begin{itemize}
+	  \item R2 supports getting information from angr
+	  \item "r2pm -i r2angr"
+	  \item "r2pm angr:///bin/ls" - open the file via angr
+	  \item "afl" - list all functions recognized by angr
+	  \item Can be extended - see "radare2-extras/r2angr/"
+	% reference to scripting section of the book
+	% reference to the asciinema?
+  \end{itemize}
+\end{frame}
+
+\section{Contributing}
+
+\begin{frame}[fragile]
+  \frametitle{Contributing}
+  \begin{itemize}
+	  \item Main repo https://github.com/radare/radare2
+	  \item Extras - https://github.com/radare/radare2-extras
+	  \item Qt GUI - https://github.com/hteso/iaito
+	  \item WebUI - https://github.com/radare/radare2-webui
+	  \item Radeco - https://github.com/radare/radeco-lib
+	  \item You can pick up issues marked as "easy"
+	  \item Travis CI, AppVeyor, Jenkins, Coverity, etc
+  \end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------------------------------
+\ifxetex
+\else
+\section{References}
+\begin{frame}[allowframebreaks]
+	\frametitle{A lot of them}
+	\printbibliography
+\end{frame}
+\fi
+
+\end{document}

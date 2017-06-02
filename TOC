@@ -1,0 +1,51 @@
+40-50 slides
+2-3 slides each point
+20 TOC items
+
+[+] 1. Introduction
+[+] 1.0 Radare2 history
+[+] 1.1 Radare2 benefits
+[+] 1.2 Installation
+[+] 1.3 Toolset review
+
+[+] 2. Short cheatsheet
+[+] 2.1 Commands concept
+[+] 2.2 Simple disassembly
+[+] 2.3 Simple debug
+[+] 2.4 Simple patch
+[+] 2.5 Visual modes
+
+[+] 3. Analysis
+[+] 3.1 Analysis options
+[+] 3.2 Different analysis commands
+[+] 3.3 ASCII graphs (VV + p - minimap)
+[+] 3.4 Types and arguments
+[+] 3.5 ESIL
+[+] 3.6 Memory inspection (dmm, dmh, dbta)
+
+[+] 4. Debugging
+[+] 4.1 Native debugging
+[+] 4.2 GDB remote connection
+[+] 4.3 WinDbg remote connection
+[+] 4.4 Frida
+[+] 4.5 ESIL debugging
+[+] 4.6 Timeless debugging
+
+[+] 5. Signatures
+[+] 5.1 Native zignatures
+[+] 5.2 FLIRT signatures
+[+] 5.3 Yara
+
+[+] 6. Scripting
+[+] 6.1 Internal scripting
+[+] 6.2 Loops, macroses and aliases
+[+] 6.3 R2pipe
+[] 6.4 IPython
+[+] 6.5 R2Angr
+
+[+] 7. Contributing
+
+[] 8. More information
+
+[] 9. References
+
